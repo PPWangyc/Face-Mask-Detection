@@ -5,7 +5,7 @@
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from tensorflow.keras.preprocessing.image import img_to_array
 from tensorflow.keras.models import load_model
-from imutils.video import VideoStream
+from imutils.video import VideoStream, FileVideoStream, FPS
 import numpy as np
 import argparse
 import imutils
@@ -85,8 +85,16 @@ ap.add_argument("-m", "--model", type=str,
 	help="path to trained face mask detector model")
 ap.add_argument("-c", "--confidence", type=float, default=0.5,
 	help="minimum probability to filter weak detections")
-args = vars(ap.parse_args())
+ap.add_argument("-v", "--video", type=str, default="/home/yanchen/Data/breathe/s156/s156_session 6_12-21-21_part02.mp4", help="path to optional video file")
 
+# define a function: write the box and label to a file
+def write_to_file(file_name, label, box):
+	with open(file_name + ".txt", "a") as f:
+		f.write(label + " " + str(box[0]) + " " + str(box[1]) + " " + str(box[2]) + " " + str(box[3]) + "\n")
+
+
+args = vars(ap.parse_args())
+file_name = args["video"].split(".")[0]
 # load our serialized face detector model from disk
 print("[INFO] loading face detector model...")
 prototxtPath = os.path.sep.join([args["face"], "deploy.prototxt"])
@@ -99,15 +107,20 @@ print("[INFO] loading face mask detector model...")
 maskNet = load_model(args["model"])
 
 # initialize the video stream and allow the camera sensor to warm up
-print("[INFO] starting video stream...")
-vs = VideoStream(src=0).start()
-time.sleep(2.0)
+print("[INFO] starting video file thread...")
+
+fvs = FileVideoStream(args["video"]).start()
+
+time.sleep(1.0)
+
+# start the FPS timer
+fps = FPS().start()
 
 # loop over the frames from the video stream
-while True:
+while fvs.more():
 	# grab the frame from the threaded video stream and resize it
 	# to have a maximum width of 400 pixels
-	frame = vs.read()
+	frame = fvs.read()
 	frame = imutils.resize(frame, width=400)
 
 	# detect faces in the frame and determine if they are wearing a
@@ -123,11 +136,12 @@ while True:
 
 		# determine the class label and color we'll use to draw
 		# the bounding box and text
-		label = "Mask" if mask > withoutMask else "No Mask"
-		color = (0, 255, 0) if label == "Mask" else (0, 0, 255)
+		# if mask: label = 1, if no mask: label = 0
+		label = 1 if mask > withoutMask else "0"
+		color = (0, 255, 0) if label == 1 else (0, 0, 255)
 			
 		# include the probability in the label
-		label = "{}: {:.2f}%".format(label, max(mask, withoutMask) * 100)
+		label = "{}: {:.4f}".format(label, max(mask, withoutMask))
 
 		# display the label and bounding box rectangle on the output
 		# frame
@@ -136,13 +150,15 @@ while True:
 		cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
 
 	# show the output frame
-	cv2.imshow("Frame", frame)
-	key = cv2.waitKey(1) & 0xFF
+	# cv2.imshow("Frame", frame)
+	write_to_file(file_name, label, box)
+	key = cv2.waitKey(1)
+	fps.update()
 
-	# if the `q` key was pressed, break from the loop
-	if key == ord("q"):
-		break
-
+# stop the timer and display FPS information
+fps.stop()
+print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
+print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
 # do a bit of cleanup
 cv2.destroyAllWindows()
-vs.stop()
+fvs.stop()
