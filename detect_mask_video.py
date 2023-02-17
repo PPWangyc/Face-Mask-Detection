@@ -121,6 +121,8 @@ while fvs.more():
 	# grab the frame from the threaded video stream and resize it
 	# to have a maximum width of 400 pixels
 	frame = fvs.read()
+	if frame is None:
+		break
 	frame = imutils.resize(frame, width=400)
 
 	# detect faces in the frame and determine if they are wearing a
