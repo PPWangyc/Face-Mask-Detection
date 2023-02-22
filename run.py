@@ -16,10 +16,13 @@ for file in file_list:
     file=file + "\n"
     if file not in processed_list:
         file=file.strip()
+        file=file.replace(" ", "\ ")
+        print(file)
         # run the detect_mask_video.py
-        os.system("python3 detect_mask_video.py --video " + file)
+        # os.system("python3 detect_mask_video.py --video " + file)
         # write the file name to processed.txt
         processed_file = open("processed.txt", "a")
+        file = file.replace("\ ", " ")
         processed_file.write(file + '\n')
         # delete the file
         # os.remove(file)
