@@ -88,10 +88,22 @@ ap.add_argument("-c", "--confidence", type=float, default=0.5,
 ap.add_argument("-v", "--video", type=str, default="/home/yanchen/Data/breathe/s156/s156_session 6_12-21-21_part02.mp4", help="path to optional video file")
 
 # define a function: write the box and label to a file
-def write_to_file(file_name, label, box):
-	with open(file_name + ".txt", "a") as f:
-		f.write(label + " " + str(box[0]) + " " + str(box[1]) + " " + str(box[2]) + " " + str(box[3]) + "\n")
+def write_to_file(output_path, frame_num, label, box):
+	with open(output_path + "/label.txt", "a") as f:
+		f.write(str(frame_num) + " " + label + " " + str(box[0]) + " " + str(box[1]) + " " + str(box[2]) + " " + str(box[3]) + "\n")
 
+def write_value_to_file(output_path, total_frame):
+	with open(output_path + "/label_value.txt", "a") as f:
+		f.write(str(total_frame) + "\n")
+
+# create a directory where the video is stored
+def create_dir(file_name):
+	output_path = file_name.split("/")[0:-1]
+	output_path = "/".join(output_path)
+	output_path = os.path.join(output_path,file_name.split("/")[-1])
+	if not os.path.exists(output_path):
+		os.makedirs(output_path)
+	return output_path
 
 args = vars(ap.parse_args())
 file_name = args["video"].split(".")[0]
@@ -109,26 +121,44 @@ maskNet = load_model(args["model"])
 # initialize the video stream and allow the camera sensor to warm up
 print("[INFO] starting video file thread...")
 
-fvs = FileVideoStream(args["video"]).start()
+# fvs = FileVideoStream(args["video"]).start()
+
+output_path = create_dir(file_name)
 
 time.sleep(1.0)
+
+count = 0
+cap= cv2.VideoCapture(args["video"])
 
 # start the FPS timer
 fps = FPS().start()
 
+while cap.isOpened():
+	ret, frame = cap.read()
+	if not ret:
+		break
+	fps.update()
+fps.stop()
+cap.release()
+print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
+print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
+
+cap = cv2.VideoCapture(args["video"])
 # loop over the frames from the video stream
-while fvs.more():
+while cap.isOpened():
 	# grab the frame from the threaded video stream and resize it
 	# to have a maximum width of 400 pixels
-	frame = fvs.read()
-	if frame is None:
+	ret, frame = cap.read()
+	if not ret:
 		break
 	frame = imutils.resize(frame, width=400)
 
 	# detect faces in the frame and determine if they are wearing a
 	# face mask or not
 	(locs, preds) = detect_and_predict_mask(frame, faceNet, maskNet)
-
+	if len(locs) == 0:
+		print("no face detected")
+		continue
 	# loop over the detected face locations and their corresponding
 	# locations
 	for (box, pred) in zip(locs, preds):
@@ -151,16 +181,10 @@ while fvs.more():
 			cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
 		cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
 
-	# show the output frame
-	# cv2.imshow("Frame", frame)
-	write_to_file(file_name, label, box)
-	key = cv2.waitKey(1)
-	fps.update()
 
-# stop the timer and display FPS information
-fps.stop()
-print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
-print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
-# do a bit of cleanup
-cv2.destroyAllWindows()
-fvs.stop()
+	count += int(5 * fps.fps())
+	cv2.imwrite(os.path.join(output_path,'{:d}.jpg'.format(count)), frame)
+	write_to_file(output_path, count, label, box)
+	cap.set(cv2.CAP_PROP_POS_MSEC, count)
+cap.release()
+write_value_to_file(output_path, count)
