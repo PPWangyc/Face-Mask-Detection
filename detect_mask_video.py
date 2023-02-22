@@ -149,7 +149,7 @@ while cap.isOpened():
 	# grab the frame from the threaded video stream and resize it
 	# to have a maximum width of 400 pixels
 	ret, frame = cap.read()
-	if not ret:
+	if frame is None:
 		break
 	frame = imutils.resize(frame, width=400)
 
@@ -170,18 +170,19 @@ while cap.isOpened():
 		# the bounding box and text
 		# if mask: label = 1, if no mask: label = 0
 		label = 1 if mask > withoutMask else "0"
-		color = (0, 255, 0) if label == 1 else (0, 0, 255)
+		# color = (0, 255, 0) if label == 1 else (0, 0, 255)
 			
 		# include the probability in the label
 		label = "{}: {:.4f}".format(label, max(mask, withoutMask))
 
 		# display the label and bounding box rectangle on the output
 		# frame
-		cv2.putText(frame, label, (startX, startY - 10),
-			cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
-		cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
-
-
+		# cv2.putText(frame, label, (startX, startY - 10),
+		# 	cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
+		# cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
+		# crop the face according to the box
+		frame = frame[startY:endY, startX:endX]
+	
 	count += int(5 * fps.fps())
 	cv2.imwrite(os.path.join(output_path,'{:d}.jpg'.format(count)), frame)
 	write_to_file(output_path, count, label, box)
