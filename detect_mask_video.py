@@ -92,9 +92,9 @@ def write_to_file(output_path, frame_num, label, box):
 	with open(output_path + "/label.txt", "a") as f:
 		f.write(str(frame_num) + " " + label + " " + str(box[0]) + " " + str(box[1]) + " " + str(box[2]) + " " + str(box[3]) + "\n")
 
-def write_value_to_file(output_path, total_frame):
+def write_value_to_file(output_path, total_frame, total_time, fps):
 	with open(output_path + "/label_value.txt", "a") as f:
-		f.write(str(total_frame) + "\n")
+		f.write("total_frame:{}, total_time:{}, fps:{}\n".format(total_frame, total_time, fps))
 
 # create a directory where the video is stored
 def create_dir(file_name):
@@ -128,22 +128,15 @@ output_path = create_dir(file_name)
 time.sleep(1.0)
 
 count = 0
-cap= cv2.VideoCapture(args["video"])
-
-# start the FPS timer
-fps = FPS().start()
-
-while cap.isOpened():
-	ret, frame = cap.read()
-	if not ret:
-		break
-	fps.update()
-fps.stop()
-cap.release()
-print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
-print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
 
 cap = cv2.VideoCapture(args["video"])
+fps = int(cap.get(cv2.CAP_PROP_FPS))
+total_frame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+print("FPS:", fps)
+print("Total Frames:", total_frame)
+total_time=total_frame/fps
+print("Total Time:", total_time)
+write_value_to_file(output_path, total_frame=total_frame, total_time=total_time, fps=fps)
 # loop over the frames from the video stream
 while cap.isOpened():
 	# grab the frame from the threaded video stream and resize it
@@ -158,6 +151,8 @@ while cap.isOpened():
 	(locs, preds) = detect_and_predict_mask(frame, faceNet, maskNet)
 	if len(locs) == 0:
 		print("no face detected")
+		count += 5
+		cap.set(cv2.CAP_PROP_POS_MSEC, count * 1000)
 		continue
 	# loop over the detected face locations and their corresponding
 	# locations
@@ -182,10 +177,10 @@ while cap.isOpened():
 		# cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
 		# crop the face according to the box
 		frame = frame[startY:endY, startX:endX]
-	
-	count += int(5 * fps.fps())
+	cframe = cap.get(cv2.CAP_PROP_POS_FRAMES)
 	cv2.imwrite(os.path.join(output_path,'{:d}.jpg'.format(count)), frame)
 	write_to_file(output_path, count, label, box)
-	cap.set(cv2.CAP_PROP_POS_MSEC, count)
+	count += 5
+	cap.set(cv2.CAP_PROP_POS_MSEC, count * 1000)
+
 cap.release()
-write_value_to_file(output_path, count)
