@@ -178,8 +178,12 @@ while cap.isOpened():
 		# crop the face according to the box
 		frame = frame[startY:endY, startX:endX]
 	cframe = cap.get(cv2.CAP_PROP_POS_FRAMES)
-	cv2.imwrite(os.path.join(output_path,'{:d}.jpg'.format(count)), frame)
-	write_to_file(output_path, count, label, box)
+	print(type(frame))
+	try:
+		cv2.imwrite(os.path.join(output_path,'{:d}.jpg'.format(count)), frame)
+		write_to_file(output_path, count, label, box)
+	except:
+		count += 5
 	count += 5
 	cap.set(cv2.CAP_PROP_POS_MSEC, count * 1000)
 
