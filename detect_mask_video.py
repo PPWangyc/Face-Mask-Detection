@@ -178,7 +178,6 @@ while cap.isOpened():
 		# crop the face according to the box
 		frame = frame[startY:endY, startX:endX]
 	cframe = cap.get(cv2.CAP_PROP_POS_FRAMES)
-	print(type(frame))
 	try:
 		cv2.imwrite(os.path.join(output_path,'{:d}.jpg'.format(count)), frame)
 		write_to_file(output_path, count, label, box)
